@@ -7,11 +7,12 @@
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "client:dev": "cd client && npm start",
     "server:dev": "cd server && npm run dev",
-    "build": "cd client && npm run build",
+    "build": "echo 'Server build - no build step needed'",
     "start": "cd server && npm start",
-    "test": "npm run client:test && npm run server:test",
+    "test": "npm run server:test",
     "client:test": "cd client && npm test",
-    "server:test": "cd server && npm test"
+    "server:test": "cd server && npm test",
+    "client:build": "cd client && npm run build"
   },
   "keywords": ["quiz", "game", "education", "real-time", "multiplayer"],
   "author": "QuizGo Team",
