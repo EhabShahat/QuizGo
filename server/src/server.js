@@ -226,21 +226,16 @@ app.use((error, req, res, next) => {
 // Initialize services
 async function startServer() {
   try {
-    // Connect to Redis
-    await connectRedis();
-    console.log('✅ Redis connected');
-
-    // Initialize Socket.io
-    const io = await initializeSocket(server);
-    console.log('✅ Socket.io initialized');
-
-    // Start server
+    // Start server first (most important)
     const PORT = process.env.PORT || 3001;
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 QuizGo server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
     });
+
+    // Initialize services after server is running (non-blocking)
+    initializeServices();
 
     // Graceful shutdown
     process.on('SIGTERM', () => {
@@ -262,6 +257,25 @@ async function startServer() {
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
+  }
+}
+
+// Initialize services after server is running
+async function initializeServices() {
+  // Connect to Redis (non-blocking)
+  try {
+    await connectRedis();
+    console.log('✅ Redis connected');
+  } catch (error) {
+    console.warn('⚠️  Redis connection failed, continuing without Redis:', error.message);
+  }
+
+  // Initialize Socket.io (non-blocking)
+  try {
+    const io = await initializeSocket(server);
+    console.log('✅ Socket.io initialized');
+  } catch (error) {
+    console.warn('⚠️  Socket.io initialization failed:', error.message);
   }
 }
 
