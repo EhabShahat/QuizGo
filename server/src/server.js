@@ -54,13 +54,120 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
+// Health check endpoint for Railway
+app.get('/health', async (req, res) => {
+  const healthCheck = {
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
+    version: require('../package.json').version,
+    services: {
+      database: 'unknown',
+      redis: 'unknown'
+    },
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    }
+  };
+
+  try {
+    // Test Supabase connection
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_KEY
+      );
+      
+      const { error } = await supabase
+        .from('quizzes')
+        .select('count')
+        .limit(1);
+      
+      healthCheck.services.database = error ? 'error' : 'healthy';
+    } else {
+      healthCheck.services.database = 'not_configured';
+    }
+
+    // Test Redis connection
+    const { getRedisClient } = require('./config/redis');
+    const redisClient = getRedisClient();
+    
+    if (redisClient) {
+      try {
+        await redisClient.ping();
+        healthCheck.services.redis = 'healthy';
+      } catch (error) {
+        healthCheck.services.redis = 'error';
+      }
+    } else {
+      healthCheck.services.redis = 'not_connected';
+    }
+
+    // Determine overall health
+    const isHealthy = healthCheck.services.database !== 'error' && 
+                     healthCheck.services.redis !== 'error';
+
+    if (isHealthy) {
+      res.status(200).json(healthCheck);
+    } else {
+      healthCheck.status = 'DEGRADED';
+      res.status(503).json(healthCheck);
+    }
+
+  } catch (error) {
+    healthCheck.status = 'ERROR';
+    healthCheck.error = error.message;
+    res.status(503).json(healthCheck);
+  }
+});
+
+// Readiness check (for Railway)
+app.get('/ready', async (req, res) => {
+  try {
+    // Quick checks for essential services
+    const checks = [];
+
+    // Check if server is listening
+    checks.push({ name: 'server', status: 'ready' });
+
+    // Check environment variables
+    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
+    const missingEnvVars = requiredEnvVars.filter(env => !process.env[env]);
+    
+    if (missingEnvVars.length > 0) {
+      return res.status(503).json({
+        status: 'NOT_READY',
+        message: `Missing environment variables: ${missingEnvVars.join(', ')}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    checks.push({ name: 'environment', status: 'ready' });
+
+    res.status(200).json({
+      status: 'READY',
+      timestamp: new Date().toISOString(),
+      checks
+    });
+
+  } catch (error) {
+    res.status(503).json({
+      status: 'NOT_READY',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Liveness check (simple ping)
+app.get('/ping', (req, res) => {
+  res.status(200).json({
+    status: 'alive',
+    timestamp: new Date().toISOString(),
+    message: 'pong'
   });
 });
 
