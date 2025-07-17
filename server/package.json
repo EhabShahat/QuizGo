@@ -4,7 +4,8 @@
   "description": "QuizGo backend server with Socket.io and Supabase",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node simple-test.js",
+    "start:full": "node src/server.js",
     "dev": "nodemon src/server.js",
     "build": "echo 'No build step needed'",
     "cluster": "node src/cluster.js",
