@@ -54,31 +54,29 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// Simple health check endpoint for Railway (more reliable)
+// Multiple health check endpoints for Railway compatibility
 app.get('/health', (req, res) => {
-  try {
-    const healthCheck = {
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      version: require('../package.json').version,
-      memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
-      }
-    };
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    message: 'Server is running'
+  });
+});
 
-    // Always return 200 for basic health check
-    res.status(200).json(healthCheck);
-  } catch (error) {
-    // Even if there's an error, return 200 so Railway doesn't fail
-    res.status(200).json({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      message: 'Basic health check passed'
-    });
-  }
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    message: 'Server is healthy'
+  });
+});
+
+app.get('/status', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    message: 'Server status OK'
+  });
 });
 
 // Detailed health check with service testing
@@ -195,6 +193,16 @@ app.get('/ping', (req, res) => {
     status: 'alive',
     timestamp: new Date().toISOString(),
     message: 'pong'
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'QuizGo Server is running!',
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
